@@ -3,7 +3,7 @@
 # ──────────────────────────────────────────────────────────────────
 CAMERA_INDEX        = 0       # try 1 or 2 if wrong camera opens
 FLIP_CAMERA         = True    # True = mirror (natural selfie view)
-MASKS_FOLDER = r"D:\very_big_work\ML_projects\hand_gesture_cast_invoker_dota2\invoker\masks"
+MASKS_FOLDER = r"D:/very_big_work/ML_projects/hand_gesture_cast_invoker_dota2/invoker/masks"
 
 # Invoker sphere keys
 KEY_QUAS   = 'q'
@@ -18,18 +18,19 @@ KEY_SLOT2  = 'f'   # tilt right → slot 2
 
 
 # Gesture confirmation: how many consecutive frames must agree
-GESTURE_HOLD_FRAMES = 10     # ~0.27s at 30fps
+GESTURE_HOLD_FRAMES = 10
 
 
 # Head tilt: angle from vertical (degrees) to trigger a cast
-TILT_THRESHOLD_DEG  = 18    # tilt at least 18° left or right
-TILT_HOLD_FRAMES    = 6     # frames head must stay tilted to confirm
+TILT_THRESHOLD_DEG = 18    # tilt at least 18° left or right
+TILT_HOLD_FRAMES = 6     # frames head must stay tilted to confirm
 
 
 # Cooldown between casts (prevents double-fire on same tilt)
 CAST_COOLDOWN_SEC = 0.8
 GESTURE_TRIGGER_THRESHOLD = 0.8
 GESTURE_RESET_THRESHOLD = 0.4
+
 
 # ──────────────────────────────────────────────────────────────────
 # SPELL TABLE

@@ -311,10 +311,10 @@ def draw_hand_landmarks(frame, hand_lm, mp_drawing, mp_hands):
 
 
 # ──────────────────────────────────────────────────────────────────
-# PIP WINDOW
+# PIP WINDOW (on top window to see yourself)
 # ──────────────────────────────────────────────────────────────────
 PIP_W, PIP_H = 360, 270
-PIP_NAME     = "cam"
+PIP_NAME     = "dota gavno"
 
 def build_pip(frame, tilt_dir, current_spell_num, mask_name):
     pip = cv2.resize(frame, (PIP_W, PIP_H))
@@ -349,7 +349,7 @@ def main():
     mp_face_mesh = mp.solutions.face_mesh
     mp_drawing   = mp.solutions.drawing_utils
 
-    masks = load_masks_from_folder("masks")
+    masks = load_masks_from_folder(cfg.MASKS_FOLDER)
     mask_names = ["none"] + [m["name"] for m in masks]
     print(f"[MASK] {len(masks)} mask(s) available. Press M to cycle.")
 
@@ -373,7 +373,6 @@ def main():
 
     gesture_history   = deque(maxlen=cfg.GESTURE_HOLD_FRAMES)
     tilt_history      = deque(maxlen=cfg.TILT_HOLD_FRAMES)
-    gesture_confirmed = None
 
     with mp_hands.Hands(
             model_complexity=0,
@@ -403,45 +402,40 @@ def main():
             face_results = face_mesh.process(rgb)
             rgb.flags.writeable = True
 
+
             # ── Face mask ─────────────────────────────────────────
             active_mask_name = "none"
-
             if mask_idx > 0:
                 active_mask_name = mask_names[mask_idx]
-
             if face_results.multi_face_landmarks:
                 face_lm_all = face_results.multi_face_landmarks[0].landmark
-
                 if mask_idx > 0:
                     mask_data = masks[mask_idx - 1]
                     frame = apply_face_mask(frame, mask_data["img"], face_lm_all)
 
+
             # ── Hand gesture ──────────────────────────────────────
             detected_gesture  = None
             gesture_confirmed = None
-
             if hand_results.multi_hand_landmarks:
                 hand_lm   = hand_results.multi_hand_landmarks[0]
                 hand_info = hand_results.multi_handedness[0]
-                label     = hand_info.classification[0].label
+                label = hand_info.classification[0].label
                 draw_hand_landmarks(frame, hand_lm, mp_drawing, mp_hands)
                 detected_gesture = classify_gesture(hand_lm.landmark, label)
-
             gesture_history.append(detected_gesture)
 
             if gesture_history.count(None) == len(gesture_history):
                 gesture_ready = True
-
-            if detected_gesture is not None and \
-               len(gesture_history) == cfg.GESTURE_HOLD_FRAMES:
-                count            = gesture_history.count(detected_gesture)
+            if detected_gesture is not None and len(gesture_history) == cfg.GESTURE_HOLD_FRAMES:
+                count = gesture_history.count(detected_gesture)
                 gesture_progress = count / cfg.GESTURE_HOLD_FRAMES
-
                 if gesture_progress >= cfg.GESTURE_TRIGGER_THRESHOLD and gesture_ready:
                     gesture_confirmed = detected_gesture
-                    gesture_ready     = False
+                    gesture_ready = False
                 elif gesture_progress <= cfg.GESTURE_RESET_THRESHOLD:
                     gesture_ready = True
+
 
             # ── Head tilt ─────────────────────────────────────────
             tilt_dir       = "NEUTRAL"
@@ -450,38 +444,41 @@ def main():
 
             if face_results.multi_face_landmarks:
                 face_lm_all = face_results.multi_face_landmarks[0].landmark
-                tilt_dir    = head_tilt_direction(face_lm_all)
-
+                tilt_dir = head_tilt_direction(face_lm_all)
             tilt_history.append(tilt_dir)
 
-            if tilt_dir in ("LEFT", "RIGHT") and \
-               len(tilt_history) == cfg.TILT_HOLD_FRAMES:
-                count         = tilt_history.count(tilt_dir)
+            if tilt_dir in ("LEFT", "RIGHT") and len(tilt_history) == cfg.TILT_HOLD_FRAMES:
+                count = tilt_history.count(tilt_dir)
                 tilt_progress = count / cfg.TILT_HOLD_FRAMES
                 if tilt_progress >= 0.85:
                     tilt_confirmed = True
 
+
             # ── Dota integration ──────────────────────────────────
+            # Gesture integration
             if gesture_confirmed:
                 keys = list(cfg.SPELLS[gesture_confirmed][1]) + [cfg.KEY_INVOKE]
-                threading.Thread(target=press_keys, args=(keys,), daemon=True).start()
+                # print("PRESS:", keys)
+                press_keys(keys)
                 with state_lock:
-                    current_spell   = gesture_confirmed
+                    current_spell = gesture_confirmed 
                     last_cast_label = cfg.SPELLS[gesture_confirmed][0]
-                    last_cast_ts    = time.time()
+                    last_cast_ts = time.time()
                 print(f"[INVOKE]  {cfg.SPELLS[gesture_confirmed][0]}")
 
+            # Tilt =))) integration
             now = time.time()
             if tilt_confirmed and now - last_tilt_time > cfg.CAST_COOLDOWN_SEC:
-                slot_key  = cfg.KEY_SLOT2 if tilt_dir == "LEFT"  else cfg.KEY_SLOT1
-                slot_name = "D"           if tilt_dir == "LEFT"  else "F"
+                slot_key = cfg.KEY_SLOT2 if tilt_dir == "LEFT" else cfg.KEY_SLOT1
+                slot_name = "D" if tilt_dir == "LEFT" else "F"
                 press_keys([slot_key])
                 last_tilt_time = now
                 with state_lock:
-                    spell_name      = cfg.SPELLS[current_spell][0] if current_spell else "?"
+                    spell_name = cfg.SPELLS[current_spell][0] if current_spell else "?"
                     last_cast_label = f"{spell_name} → {slot_name}"
-                    last_cast_ts    = now
+                    last_cast_ts = now
                 print(f"[CAST]    {spell_name}  →  {slot_name}")
+
 
             # ── Draw ──────────────────────────────────────────────
             with state_lock:
@@ -506,6 +503,7 @@ def main():
                 mask_idx = (mask_idx + 1) % len(mask_names)
                 print(f"[MASK] Active: {mask_names[mask_idx]}")
 
+
     cap.release()
     cv2.destroyAllWindows()
     print("\nDone.")
@@ -513,3 +511,57 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#        ::                                                                   ::     
+#       ::                                                                     ::    
+#     ::                                                                        ::    
+#     ::                                                               :::.  :: ::    
+#    ::                                                              :          :::   
+#   :::             .::::::::::::                      :::::::::::: :             ::  
+#   ::              ::::::::::::::::               .::::::::::::::::              ::  
+#  ::                 .::::::::::.                    :::::::::::   :             ::: 
+# :::                                                                ::          : :::
+# ::                                   .::::::::.                     .         ::: ::
+# ::  ::     ::                      ::::::::::::::                    :           .::
+# :: :         :                   ::::::::::::::::::                ::              :
+# :::           :                 ::::::::::::::::::::      ::. ::.   :               
+#  ::            :               .::::::::::::::::::::  .: :       ::::               
+#  :            :       ::   ::  :::::::::::::::::::::: : :          : :              
+#  :             :     :       :::     .:::::::::::::::   :         : ::              
+#  :              :    :                 ::.     :::::              :                 
+#   :              :   :                 :        :::                                 
+#   .               :. :                           :       :                          
+#    .               : :                           :::  .:.                           
